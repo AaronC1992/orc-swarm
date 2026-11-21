@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Orc Swarm</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="stage">
+  <div id="world">
+    <canvas id="terrain" width="960" height="540"></canvas>
+    <canvas id="decal" width="960" height="540"></canvas>
+    <canvas id="glc" width="1920" height="1080"></canvas>
+    <canvas id="fx" width="1920" height="1080"></canvas>
+  </div>
+  <div id="flash"></div>
+  <div id="leakv"></div>
+
+  <canvas id="tree" width="1920" height="1080" class="hidden"></canvas>
+
+  <div id="hud" class="hidden">
+    <div id="top">
+      <div id="hplbl">Health</div>
+      <div id="hpbar"><i id="hpfill"></i><b id="hptxt">50 / 50</b></div>
+      <div id="counters">
+        <div class="ctr" title="Orcs still to come"><canvas width="32" height="28" data-pix="horde"></canvas><span id="c-rem">0</span></div>
+        <div class="ctr" title="Orcs on the field"><canvas width="16" height="28" data-pix="orc"></canvas><span id="c-alive">0</span></div>
+        <div class="ctr" title="Orcs slain"><canvas width="16" height="28" data-pix="skel"></canvas><span id="c-kills">0</span></div>
+      </div>
+    </div>
+    <div id="banner" class="hbox"><h2>BUILD PHASE</h2><p>Press SPACE to start battle</p></div>
+    <div id="toolbar" class="hbox"></div>
+    <div id="mousebox" class="hbox" title="Controls">
+      <svg width="22" height="34" viewBox="0 0 22 34"><rect x="1.5" y="1.5" width="19" height="31" rx="9.5" fill="none" stroke="#f2f2f2" stroke-width="2"/><path d="M11 2v10M2 12h18" stroke="#f2f2f2" stroke-width="2" fill="none"/></svg>
+    </div>
+    <div id="hintL" class="hbox"></div>
+    <button id="btnStart" class="hbox">Start Battle</button>
+    <div id="battlectl">
+      <button id="btnSpeed" class="hbox">x1</button>
+      <button id="btnPause" class="hbox">II</button>
+    </div>
+    <button id="btnMenu" class="hbox" title="Menu (Esc)">&#9776;</button>
+  </div>
+
+  <div id="treeui" class="hidden">
+    <button id="btnTreeBack" class="small">Menu</button>
+    <button id="btnPlay" class="big">Play <kbd>ENTER</kbd></button>
+  </div>
+
+  <div id="screen-title" class="screen">
+    <div class="logo">
+      <div class="l1">ORC</div>
+      <div class="l3">SWARM</div>
+      <div class="l4">You hold the high ground. They only need a gap.</div>
+    </div>
+    <div class="menu">
+      <button id="btnContinue" class="big">Play</button>
+      <button id="btnNew" class="small wide">New Game</button>
+      <button id="btnSound" class="small wide">Sound: On</button>
+    </div>
+  </div>
+
+  <div id="screen-levels" class="screen hidden">
+    <h1>Choose a Battlefield</h1>
+    <div id="levelgrid"></div>
+    <button id="btnLevelsBack" class="small back">Upgrades</button>
+  </div>
+
+  <div id="screen-result" class="screen modal hidden">
+    <div class="panel">
+      <h1 id="resTitle">Victory</h1>
+      <div id="resBody"></div>
+      <div class="row">
+        <button id="btnResAgain" class="small">Retry</button>
+        <button id="btnResNext" class="small">Next Level</button>
+        <button id="btnResTree" class="big">Upgrades</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="screen-pause" class="screen modal hidden">
+    <div class="panel">
+      <h1>Paused</h1>
+      <div class="row col">
+        <button id="btnResume" class="big">Resume</button>
+        <button id="btnRestart" class="small wide">Restart Level</button>
+        <button id="btnQuit" class="small wide">Quit to Upgrades</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="tip" class="hidden"></div>
+  <div id="toast" class="hidden"></div>
+</div>
+
+<script src="js/util.js"></script>
+<script src="js/data.js"></script>
+<script src="js/maps.js"></script>
+<script src="js/sim.js"></script>
+<script src="js/render.js"></script>
+<script src="js/fx.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/icons.js"></script>
+<script src="js/weapons.js"></script>
+<script src="js/abilities.js"></script>
+<script src="js/meta.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
