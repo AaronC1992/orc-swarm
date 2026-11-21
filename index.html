@@ -8,6 +8,7 @@
 </head>
 <body>
 <div id="stage">
+  <div id="board">
   <div id="world">
     <canvas id="terrain" width="960" height="540"></canvas>
     <canvas id="decal" width="960" height="540"></canvas>
@@ -18,6 +19,7 @@
   <div id="leakv"></div>
 
   <canvas id="tree" width="1920" height="1080" class="hidden"></canvas>
+  </div>
 
   <div id="hud" class="hidden">
     <div id="top">
@@ -31,6 +33,7 @@
     </div>
     <div id="banner" class="hbox"><h2>BUILD PHASE</h2><p>Press SPACE to start battle</p></div>
     <div id="toolbar" class="hbox"></div>
+    <div id="buildTools" class="board-tools hidden"><button id="buildDone">Deselect</button><button id="arcLess">Arc -</button><button id="arcMore">Arc +</button><button id="buildRemove">Remove</button></div>
     <div id="mousebox" class="hbox" title="Controls">
       <svg width="22" height="34" viewBox="0 0 22 34"><rect x="1.5" y="1.5" width="19" height="31" rx="9.5" fill="none" stroke="#f2f2f2" stroke-width="2"/><path d="M11 2v10M2 12h18" stroke="#f2f2f2" stroke-width="2" fill="none"/></svg>
     </div>
@@ -44,7 +47,9 @@
   </div>
 
   <div id="treeui" class="hidden">
+    <p class="touch-note">Drag to pan. Tap a node to inspect; tap again to buy.</p>
     <button id="btnTreeBack" class="small">Menu</button>
+    <div class="board-tools zoom-tools"><button id="zoomOut" aria-label="Zoom out">-</button><button id="zoomIn" aria-label="Zoom in">+</button></div>
     <button id="btnPlay" class="big">Play <kbd>ENTER</kbd></button>
   </div>
 
@@ -56,6 +61,7 @@
     </div>
     <div class="menu">
       <button id="btnContinue" class="big">Play</button>
+      <button id="btnVR" class="small wide hidden">Enter VR</button>
       <button id="btnNew" class="small wide">New Game</button>
       <button id="btnSound" class="small wide">Sound: On</button>
     </div>
@@ -107,5 +113,6 @@
 <script src="js/meta.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/main.js"></script>
+<script src="js/vr.js"></script>
 </body>
 </html>

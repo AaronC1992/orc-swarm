@@ -19,13 +19,20 @@
   fx.initDecal(decal);
   $('btnSound').textContent = 'Sound: On';
 
-  function fit() {
-    const s = Math.min(innerWidth / G.W, innerHeight / G.H);
+  const coarse = matchMedia('(pointer: coarse)');
+  const fit = G.fit = function () {
+    const mobile = coarse.matches && !G.inVR;
+    document.body.classList.toggle('touch-ui', mobile);
+    const top = mobile ? 44 : 0, bottom = mobile ? 96 : 0;
+    const s = Math.min(innerWidth / G.W, (innerHeight - top - bottom) / G.H);
     G.view.s = s;
     G.view.ox = (innerWidth - G.W * s) / 2;
-    G.view.oy = (innerHeight - G.H * s) / 2;
-    stage.style.transform = 'translate(' + G.view.ox + 'px,' + G.view.oy + 'px) scale(' + s + ')';
-  }
+    G.view.oy = top + (innerHeight - top - bottom - G.H * s) / 2;
+    const transform = 'translate(' + G.view.ox + 'px,' + G.view.oy + 'px) scale(' + s + ')';
+    stage.style.transform = mobile ? 'none' : transform;
+    $('board').style.transform = mobile ? transform : 'none';
+  };
+  coarse.addEventListener('change', fit);
   window.addEventListener('resize', fit);
   fit();
 
@@ -104,6 +111,7 @@
 
   G.setPaused = function (p) {
     if (G.state !== 'battle') return;
+    U.board.cancel();
     G.paused = p;
     $('screen-pause').classList.toggle('hidden', !p);
   };
@@ -207,8 +215,7 @@
 
   /* ----------------------------------------------------------------- loop */
   let last = performance.now();
-  function frame(now) {
-    requestAnimationFrame(frame);
+  G.gameFrame = function (now) {
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
     const st = G.state;
@@ -218,6 +225,10 @@
     }
     draw(now);
     if (st === 'build' || st === 'battle' || st === 'result') U.updateHud();
+  };
+  function frame(now) {
+    requestAnimationFrame(frame);
+    if (!G.inVR) G.gameFrame(now);
   }
 
   G.go('title');

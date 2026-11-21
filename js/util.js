@@ -46,6 +46,29 @@ G.toStage = function (e) {
   return { x: (e.clientX - G.view.ox) / G.view.s, y: (e.clientY - G.view.oy) / G.view.s };
 };
 
+// Only the pointer that began a gesture can finish it (including off-canvas releases).
+G.bindBoard = function (el, actions) {
+  let owner = null;
+  function cancel() { owner = null; actions.cancel(); }
+  el.addEventListener('pointerdown', e => {
+    if (owner !== null || e.button !== 0 || !e.isPrimary) return;
+    owner = e.pointerId;
+    el.setPointerCapture(owner);
+    actions.down(G.toStage(e), e.pointerType);
+  });
+  el.addEventListener('pointermove', e => {
+    if (e.isPrimary && (owner === null || e.pointerId === owner)) actions.move(G.toStage(e));
+  });
+  el.addEventListener('pointerup', e => {
+    if (e.pointerId !== owner || e.button !== 0) return;
+    owner = null;
+    actions.up(G.toStage(e), e.pointerType);
+  });
+  el.addEventListener('lostpointercapture', e => { if (e.pointerId === owner) cancel(); });
+  el.addEventListener('pointercancel', e => { if (e.pointerId === owner) cancel(); });
+  window.addEventListener('blur', cancel);
+};
+
 /* ------------------------------------------------------------------ save */
 G.SAVE_KEY = 'orcProblemSave_v2';
 G.save = {

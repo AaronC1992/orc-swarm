@@ -11,6 +11,10 @@ html, body { margin: 0; height: 100%; background: #000; overflow: hidden; font-f
 
 #stage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; background: #111; overflow: hidden; }
 #world { position: absolute; inset: 0; will-change: transform; }
+#board { position: absolute; width: 1920px; height: 1080px; transform-origin: 0 0; }
+#fx, #tree { touch-action: none; }
+.board-tools { display: none; }
+.touch-note { display: none; }
 #world canvas { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
 #terrain, #decal { image-rendering: pixelated; }
 #decal { image-rendering: pixelated; }
@@ -128,3 +132,49 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
 #tip .cost { margin-top: 8px; font-size: 22px; font-weight: bold; }
 #tip .lockmsg { margin-top: 8px; font-size: 16px; color: #ff9a8a; }
 #toast { position: absolute; left: 50%; top: 250px; transform: translateX(-50%); padding: 10px 26px; background: var(--panel); border: 3px solid #000; outline: 2px solid var(--teal); font-size: 24px; font-weight: bold; z-index: 30; pointer-events: none; }
+
+/* Keep touch UI in screen pixels; only the battlefield is letterboxed. */
+.touch-ui #stage { width: 100%; height: 100%; background: #10171b; }
+.touch-ui button, .touch-ui button.big, .touch-ui button.small { min-height: 44px; font-size: 16px; padding: 4px 12px; touch-action: manipulation; }
+.touch-ui .wide { width: min(70vw, 260px); }
+.touch-ui .menu { gap: 8px; }
+.touch-ui #screen-title { gap: 12px; padding: 10px; overflow: auto; }
+.touch-ui .logo .l1 { font-size: 30px; }
+.touch-ui .logo .l3 { font-size: clamp(56px, 12vh, 90px); margin: -6px 0 0; }
+.touch-ui .logo .l4 { font-size: 12px; letter-spacing: 1px; }
+.touch-ui .panel { min-width: 0; width: min(94%, 540px); max-height: 94%; overflow: auto; padding: 12px; }
+.touch-ui .panel h1, .touch-ui #screen-levels h1 { font-size: 25px; }
+.touch-ui #resBody { font-size: 16px; }
+.touch-ui .row { gap: 8px; flex-wrap: wrap; }
+.touch-ui #screen-levels { padding: 8px 12px 58px; gap: 8px; }
+.touch-ui #levelgrid { width: min(100%, 960px); grid-template-columns: repeat(auto-fit,minmax(135px,1fr)); overflow-y: auto; gap: 8px; padding: 4px; }
+.touch-ui .lcard { width: 100%; height: auto; min-height: 84px; padding-bottom: 5px; }
+.touch-ui .lcard canvas { height: 65px; }
+.touch-ui .lcard .nm, .touch-ui .lcard .sub, .touch-ui .lcard .lid, .touch-ui .lcard .badge { font-size: 13px; }
+.touch-ui .back, .touch-ui #treeui #btnTreeBack { left: 6px; bottom: 6px; }
+.touch-ui #treeui #btnPlay { right: 6px; bottom: 6px; }
+.touch-ui .board-tools { position: absolute; display: flex; gap: 4px; left: 50%; transform: translateX(-50%); }
+.touch-ui #buildTools { bottom: 50px; }
+.touch-ui .zoom-tools { bottom: 6px; }
+.touch-ui .zoom-tools button { min-width: 44px; }
+.touch-ui .touch-note { display: block; position: absolute; bottom: 56px; width: 100%; margin: 0; padding: 0 6px; text-align: center; font-size: 13px; }
+.touch-ui #mousebox, .touch-ui #hintL, .touch-ui #banner, .touch-ui kbd, .touch-ui .slot .key { display: none; }
+.touch-ui #btnMenu { left: 2px; top: 0; }
+.touch-ui #top { width: min(60%,320px); top: 2px; }
+.touch-ui #hplbl { display: none; }
+.touch-ui #hpbar { margin: 0; height: 18px; }
+.touch-ui #counters { margin: 0; }
+.touch-ui .ctr { height: 20px; font-size: 13px; gap: 2px; }
+.touch-ui .ctr span { min-width: 0; }
+.touch-ui .ctr canvas { height: 16px; width: auto; }
+.touch-ui #toolbar { bottom: 2px; height: 46px; padding: 0; min-width: 0; max-width: 100%; }
+.touch-ui .slot { width: 44px; min-width: 44px; touch-action: manipulation; }
+.touch-ui .slot canvas { width: 40px; height: 40px; top: 0; left: 0; }
+.touch-ui .slot .cnt { font-size: 12px; }
+.touch-ui #hud #btnStart { top: 0; right: 2px; bottom: auto; width: auto; height: 44px; font-size: 15px; padding: 0 6px; }
+.touch-ui #battlectl { right: 2px; bottom: 50px; gap: 4px; }
+.touch-ui #battlectl button { width: 44px; height: 44px; }
+.touch-ui #tip { width: min(94%, 420px); top: 2px !important; left: 50% !important; transform: translateX(-50%); padding: 4px 8px; }
+.touch-ui #tip .t, .touch-ui #tip .cost { font-size: 16px; }
+.touch-ui #tip .d, .touch-ui #tip .lv, .touch-ui #tip .lockmsg { font-size: 13px; }
+.touch-ui #toast { top: 48px; width: max-content; max-width: 92%; font-size: 16px; padding: 8px; }

@@ -70,6 +70,7 @@ G.meta = (function () {
   }
 
   function showTip(n, sx, sy) {
+    if (G.inVR) return; // The virtual board draws its own tooltip.
     if (!n) { tip.classList.add('hidden'); return; }
     const l = G.level(n.id), cur = CUR[n.cur], cost = G.nodeCost(n), avail = G.nodeAvailable(n);
     const have = G.save.data[cur.key], maxed = l >= n.max;
@@ -86,15 +87,13 @@ G.meta = (function () {
   }
 
   /* ---------------------------------------------------------------- input */
-  cv.addEventListener('mousedown', e => {
-    if (!isOpen || e.button !== 0) return;
-    G.audio.init();
-    const m = G.toStage(e);
-    drag = { sx: m.x, sy: m.y, cx: cam.x, cy: cam.y, moved: false };
-  });
-  window.addEventListener('mousemove', e => {
+  function down(m) {
     if (!isOpen) return;
-    const m = G.toStage(e);
+    G.audio.init();
+    drag = { sx: m.x, sy: m.y, cx: cam.x, cy: cam.y, moved: false };
+  }
+  function move(m) {
+    if (!isOpen) return;
     lastMouse = m;
     if (drag) {
       if (!drag.moved && Math.hypot(m.x - drag.sx, m.y - drag.sy) > 6) drag.moved = true;
@@ -103,13 +102,17 @@ G.meta = (function () {
     hover = drag && drag.moved ? null : nodeAt(m.x, m.y);
     cv.style.cursor = drag && drag.moved ? 'grabbing' : hover ? 'pointer' : 'grab';
     showTip(hover, m.x, m.y);
-  });
-  window.addEventListener('mouseup', e => {
+  }
+  let inspected = null;
+  function up(m, type) {
     if (!isOpen || !drag) return;
     const wasClick = !drag.moved;
     drag = null;
-    if (!wasClick || e.button !== 0) return;
-    const m = G.toStage(e), n = nodeAt(m.x, m.y);
+    if (!wasClick) { inspected = null; return; }
+    const n = nodeAt(m.x, m.y);
+    if (type === 'touch' && (!n || inspected !== n)) {
+      inspected = n; showTip(n, m.x, m.y); return;
+    }
     if (!n) return;
     if (G.buyNode(n)) {
       pulses[n.id] = 1;
@@ -118,14 +121,19 @@ G.meta = (function () {
     } else {
       G.audio.play('error');
     }
-  });
+  }
+  const board = { down, move, up, cancel() { drag = null; inspected = null; } };
+  G.bindBoard(cv, board);
+  function zoom(factor, m = { x: 960, y: 540 }) {
+    const wx = (m.x - 960) / cam.z + cam.x, wy = (m.y - 540) / cam.z + cam.y;
+    cam.z = G.clamp(cam.z * factor, 0.35, 5);
+    cam.x = wx - (m.x - 960) / cam.z; cam.y = wy - (m.y - 540) / cam.z;
+  }
+  document.getElementById('zoomIn').onclick = () => zoom(1.4);
+  document.getElementById('zoomOut').onclick = () => zoom(1 / 1.4);
   cv.addEventListener('wheel', e => {
     if (!isOpen) return;
-    e.preventDefault();
-    const m = G.toStage(e);
-    const wx = (m.x - 960) / cam.z + cam.x, wy = (m.y - 540) / cam.z + cam.y;
-    cam.z = G.clamp(cam.z * (e.deltaY < 0 ? 1.12 : 1 / 1.12), 0.35, 2.2);
-    cam.x = wx - (m.x - 960) / cam.z; cam.y = wy - (m.y - 540) / cam.z;
+    e.preventDefault(); zoom(e.deltaY < 0 ? 1.12 : 1 / 1.12, G.toStage(e));
   }, { passive: false });
 
   /* ----------------------------------------------------------------- draw */
@@ -206,7 +214,7 @@ G.meta = (function () {
     }
     ctx.fillStyle = 'rgba(180,190,205,0.55)'; ctx.font = '17px "Trebuchet MS", sans-serif'; ctx.textAlign = 'center';
     ctx.fillText('Crystals come from kills  -  Orbs from winning a level for the first time  -  Cubes from a flawless first win', 960, 1040);
-    ctx.fillText('Drag to pan, scroll to zoom, click a node to buy', 960, 1062);
+    ctx.fillText(document.body.classList.contains('touch-ui') ? 'Drag to pan. Use +/- to zoom. Tap a node to inspect, tap again to buy.' : 'Drag to pan, scroll to zoom, click a node to buy', 960, 1062);
   }
 
   return {
@@ -217,12 +225,14 @@ G.meta = (function () {
       document.getElementById('treeui').classList.remove('hidden');
     },
     close() {
+      board.cancel();
       isOpen = false;
       tip.classList.add('hidden');
       cv.classList.add('hidden');
       document.getElementById('treeui').classList.add('hidden');
     },
-    draw,
+    draw, board,
+    get hovered() { return hover; },
     pos,
     get isOpen() { return isOpen; },
   };

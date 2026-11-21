@@ -54,6 +54,8 @@ G.ui = (function () {
   }
 
   U.show = function (state) {
+    U.board.cancel();
+    $('buildTools').classList.toggle('hidden', state !== 'build');
     tipHide();
     if (state === 'tree') G.meta.open(); else G.meta.close();
     $('hud').classList.toggle('hidden', state !== 'build' && state !== 'battle' && state !== 'result');
@@ -93,7 +95,7 @@ G.ui = (function () {
         const k = document.createElement('div'); k.className = 'key'; k.textContent = i + 1;
         const n = document.createElement('div'); n.className = 'cnt';
         s.append(c, k, n);
-        s.addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); U.pickType(d); });
+        s.addEventListener('click', () => U.pickType(d));
         tb.appendChild(s);
         slots.push({ d, el: s, cnt: n });
       });
@@ -106,7 +108,7 @@ G.ui = (function () {
         const v = document.createElement('div'); v.className = 'cdv';
         const t = document.createElement('div'); t.className = 'cdt';
         s.append(c, k, v, t);
-        s.addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); A.arm(a.id); G.audio.play('click'); });
+        s.addEventListener('click', () => { A.arm(a.id); G.audio.play('click'); U.refreshSlots(); });
         tb.appendChild(s);
         let ammo;
         if (a.id === 'missile') {
@@ -230,17 +232,16 @@ G.ui = (function () {
     return m;
   }
 
-  fxCv.addEventListener('mousedown', e => {
+  function boardDown(m, type) {
     G.audio.init();
-    const m = pos(e);
+    Object.assign(input, m, { inside: true });
     if (G.paused) return;
-    if (e.button === 2) return;
     if (G.state === 'build') {
       if (U.placing) {
         const t = W.place(U.placing, m.x, m.y);
         if (t) {
           G.audio.play('place'); U.sel = t;
-          if (W.left(U.placing) <= 0) U.placing = null;
+          if (type === 'touch' || type === 'xr' || W.left(U.placing) <= 0) U.placing = null;
           U.refreshSlots();
         } else G.audio.play('error');
         return;
@@ -259,10 +260,10 @@ G.ui = (function () {
       if (def.mode === 'click') A.use(A.armed, { x: m.x, y: m.y });
       else input.drag = { x: m.x, y: m.y };
     }
-  });
+  }
 
-  window.addEventListener('mousemove', e => {
-    const m = pos(e);
+  function boardMove(m) {
+    Object.assign(input, m);
     const d = U.dragging;
     if (d && G.state === 'build') {
       if (d.mode === 'aim') W.aimAt(d.t, m.x, m.y);
@@ -276,19 +277,30 @@ G.ui = (function () {
         }
       }
     }
-  });
+  }
 
-  window.addEventListener('mouseup', e => {
-    const m = pos(e);
+  function boardUp(m) {
+    Object.assign(input, m);
     if (U.dragging) { U.dragging = null; return; }
-    if (e.button === 0 && G.state === 'battle') {
+    if (!G.paused && G.state === 'battle') {
       if (input.drag) {
         if (A.use(A.armed, input.drag, m)) { /* fired */ }
         input.drag = null;
       }
       input.down = false;
     }
-  });
+  }
+  U.board = { down: boardDown, move: boardMove, up: boardUp, cancel() {
+    input.down = false; input.drag = null; input.inside = false; U.dragging = null;
+  } };
+  G.bindBoard(fxCv, U.board);
+  $('buildDone').onclick = () => { U.placing = null; U.sel = null; U.refreshSlots(); };
+  $('buildRemove').onclick = () => {
+    if (U.sel) W.remove(U.sel);
+    U.sel = null; U.placing = null; U.refreshSlots();
+  };
+  $('arcLess').onclick = () => { if (U.sel) W.adjustArc(U.sel, -0.04); };
+  $('arcMore').onclick = () => { if (U.sel) W.adjustArc(U.sel, 0.04); };
 
   fxCv.addEventListener('contextmenu', e => {
     e.preventDefault();
@@ -309,8 +321,8 @@ G.ui = (function () {
     W.adjustArc(U.sel, e.deltaY < 0 ? 0.04 : -0.04);
   }, { passive: false });
 
-  fxCv.addEventListener('mouseenter', () => { input.inside = true; });
-  fxCv.addEventListener('mouseleave', () => { input.inside = false; });
+  fxCv.addEventListener('pointerenter', () => { input.inside = true; });
+  fxCv.addEventListener('pointerleave', () => { input.inside = false; });
 
   window.addEventListener('keydown', e => {
     if (e.repeat && e.code !== 'Space') return;

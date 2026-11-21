@@ -47,6 +47,19 @@ rack: reload upgrades shorten the gap between shots, but an empty rack takes 3.5
 | `M` | Mute |
 | `Enter` | Continue (title, upgrade tree, result) |
 
+**Phone or tablet:** Tap a turret in the toolbar, then tap high ground to place it.
+Drag the turret to move it or drag its aiming handle to turn it. Use **Arc -**, **Arc +**
+and **Remove** for the selected turret. In battle, tap to fire or drag and release for
+a line attack. In Upgrades, drag to pan, use **+ / -** to zoom, and tap a node twice
+to inspect then buy. Both orientations work; landscape gives a wider view.
+
+**VR headset:** Open the [live game](https://aaronc1992.github.io/orc-swarm/) in a browser
+that supports immersive WebXR with a pointing controller. Face forward and select
+**Enter VR** on the title screen. Aim the dot at the virtual board and pull the trigger
+to select, place, or fire; hold and drag to move a turret, aim its handle, or draw a
+line attack. Menus, upgrades, and pause controls are on the board. Choose **Leave VR**
+from the pause or main menu to return to the regular game. Saves stay in that browser.
+
 ## Notes
 
 All art and audio are generated procedurally. Mechanics and numbers are an approximation,
