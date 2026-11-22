@@ -1,239 +1,303 @@
 'use strict';
-/* The upgrade tree: a glowing neon node graph with pan, zoom, tooltips and purchasing. */
+/* Upgrades screen: a tab per weapon (plus Defense and Economy) above a grid of upgrade cards.
+   model() only reads the save, so the VR menu can draw the same screen without any DOM. */
 
 G.meta = (function () {
-  const cv = document.getElementById('tree'), ctx = cv.getContext('2d');
-  const tip = document.getElementById('tip');
-  const FAM = {
-    gun: '#ffd15c', cannon: '#ff9a4d', laser: '#5ce1ff', flame: '#ff6a3d', tesla: '#b58bff', mortar: '#8fe36a', grenade: '#c9e04d',
-    heart: '#ff5c7a', coin: '#ffd84a', missile: '#ff8a5c', plane: '#6fb7ff', bomb: '#ff7a3a', orbital: '#52f0ff', nuke: '#ff4c4c', snow: '#9fe8ff',
+  const $ = id => document.getElementById(id);
+  const M = { tab: 'gunner' };
+  const WALLET = [
+    { cur: 'crystal', name: 'Crystals', color: '#59b8ff', how: 'earned from kills' },
+    { cur: 'orb', name: 'Orbs', color: '#ffa03a', how: "earned from a level's first win" },
+    { cur: 'cube', name: 'Cubes', color: '#ff6fd8', how: 'earned from a flawless first win' },
+  ];
+  const CUR = {};
+  for (const w of WALLET) CUR[w.cur] = w;
+  const STATES = ['ready', 'poor', 'locked', 'max'];
+
+  const chips = {};   // currency -> { el, b }
+  const tabEls = {};  // tab id -> button
+  const refs = {};    // card id -> the parts of its card element that change
+  let built = false, gridKey = '', iconKey = '', guard = 0;
+
+  /* ------------------------------------------------------------------ model */
+  M.model = function () {
+    const d = G.save.data;
+    const tab = G.TAB_MAP[M.tab] || G.TABS[0];
+    const info = G.tabInfo(tab);
+    let note = '';
+    if (tab.id === 'economy') {
+      const p = G.payPerKill();
+      note = 'Avg. payout: ' + (p < 10 ? Math.round(p * 100) / 100 : G.fmt(p)) + ' crystals per orc on Level 1';
+    }
+    return {
+      wallet: WALLET.map(w => ({ cur: w.cur, name: w.name, color: w.color, have: d[G.curKey[w.cur]] })),
+      tabs: G.TABS.map(t => Object.assign({ tab: t, selected: t === tab }, G.tabInfo(t))),
+      tab, info, note,
+      unlock: info.locked ? G.cardInfo(G.CARD_MAP[tab.weapon]) : null,
+      cards: G.cardsOf(tab.id).map(c => G.cardInfo(c)),
+    };
   };
-  const CUR = {
-    crystal: { c: '#59b8ff', icon: 'crystal', key: 'crystals', name: 'Crystals' },
-    orb: { c: '#ffa03a', icon: 'orb', key: 'orbs', name: 'Orbs' },
-    cube: { c: '#ff6fd8', icon: 'cube', key: 'cubes', name: 'Cubes' },
+
+  M.select = function (id) {
+    if (!G.TAB_MAP[id] || id === M.tab) return;
+    M.tab = id;
+    M.refresh();
+    scrollTab();
   };
-  const HALF = 27;
-  const pos = {};
-  const pulses = {};
-  const cam = { x: 0, y: 0, z: 0.8 };
-  let hover = null, drag = null, isOpen = false, laid = false, lastMouse = { x: 0, y: 0 };
 
-  function rgba(hex, a) {
-    const n = parseInt(hex.slice(1), 16);
-    return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
-  }
+  M.step = function (dir) {
+    const n = G.TABS.length;
+    const i = G.TABS.findIndex(t => t.id === M.tab);
+    M.select(G.TABS[(i + dir + n) % n].id);
+  };
 
-  function layout() {
-    for (const n of G.TREE) {
-      if (!n.parent) { pos[n.id] = { x: 0, y: 0 }; continue; }
-      const p = pos[n.parent], a = n.ang * Math.PI / 180;
-      pos[n.id] = { x: p.x + Math.cos(a) * n.dist, y: p.y + Math.sin(a) * n.dist };
-    }
-    // relax: keep each node near its intended offset from its parent while pushing overlapping nodes apart
-    const MIN = 78;
-    for (let it = 0; it < 90; it++) {
-      for (const n of G.TREE) {
-        if (!n.parent) continue;
-        const p = pos[n.parent], q = pos[n.id], a = n.ang * Math.PI / 180;
-        q.x += (p.x + Math.cos(a) * n.dist - q.x) * 0.12;
-        q.y += (p.y + Math.sin(a) * n.dist - q.y) * 0.12;
-      }
-      for (let i = 0; i < G.TREE.length; i++) {
-        for (let j = i + 1; j < G.TREE.length; j++) {
-          const a = pos[G.TREE[i].id], b = pos[G.TREE[j].id];
-          let dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy);
-          if (d >= MIN) continue;
-          if (d < 0.01) { dx = 1; dy = 0; d = 1; }
-          const push = (MIN - d) * 0.5 / d;
-          const fa = i === 0 ? 0 : 1;
-          a.x -= dx * push * fa; a.y -= dy * push * fa;
-          b.x += dx * push; b.y += dy * push;
-        }
-      }
-    }
-    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
-    for (const id in pos) { const p = pos[id]; x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y); }
-    cam.x = (x0 + x1) / 2; cam.y = (y0 + y1) / 2;
-    cam.z = G.clamp(Math.min(1700 / (x1 - x0 + 160), 900 / (y1 - y0 + 200)), 0.4, 1.3);
-    laid = true;
-  }
+  M.buy = function (id) {
+    const c = G.CARD_MAP[id];
+    if (!c) return false;
+    const st = G.cardStatus(c);
+    if (st === 'max') return false;
+    if (st !== 'ready') { deny(c); return false; }
+    G.buyCard(c);
+    G.audio.play('buy');
+    M.refresh(id);
+    return true;
+  };
 
-  function nodeAt(sx, sy) {
-    const wx = (sx - 960) / cam.z + cam.x, wy = (sy - 540) / cam.z + cam.y;
-    let best = null, bd = 1e9;
-    for (const n of G.TREE) {
-      const p = pos[n.id], dx = Math.abs(p.x - wx), dy = Math.abs(p.y - wy);
-      if (dx <= HALF + 4 && dy <= HALF + 4 && dx + dy < bd) { bd = dx + dy; best = n; }
-    }
-    return best;
-  }
+  M.open = function () {
+    build();
+    if (!G.TAB_MAP[M.tab]) M.tab = G.TABS[0].id;
+    gridKey = '';
+    M.refresh();
+    scrollTab();
+  };
 
-  function showTip(n, sx, sy) {
-    if (G.inVR) return; // The virtual board draws its own tooltip.
-    if (!n) { tip.classList.add('hidden'); return; }
-    const l = G.level(n.id), cur = CUR[n.cur], cost = G.nodeCost(n), avail = G.nodeAvailable(n);
-    const have = G.save.data[cur.key], maxed = l >= n.max;
-    let h = '<span class="lv">' + l + '/' + n.max + '</span><div class="t" style="color:' + FAM[n.fam] + '">' + n.name + '</div>';
-    h += '<div class="d">' + n.desc + '</div>';
-    if (maxed) h += '<div class="cost" style="color:#ffd84a">MAXED</div>';
-    else h += '<div class="cost" style="color:' + (have >= cost ? cur.c : '#ff7a6a') + '">' + cur.name + ': ' + G.fmt(cost) + (have < cost ? ' <span style="font-size:16px;opacity:.8">(have ' + G.fmt(have) + ')</span>' : '') + '</div>';
-    if (!avail) h += '<div class="lockmsg">Unlock "' + G.TREE_MAP[n.parent].name + '" first.</div>';
-    tip.innerHTML = h;
-    tip.classList.remove('hidden');
-    const w = 380, hh = tip.offsetHeight || 140;
-    tip.style.left = G.clamp(sx + 26, 8, 1920 - w - 8) + 'px';
-    tip.style.top = G.clamp(sy + 22, 8, 1080 - hh - 8) + 'px';
-  }
+  M.close = function () {};
 
-  /* ---------------------------------------------------------------- input */
-  function down(m) {
-    if (!isOpen) return;
-    G.audio.init();
-    drag = { sx: m.x, sy: m.y, cx: cam.x, cy: cam.y, moved: false };
-  }
-  function move(m) {
-    if (!isOpen) return;
-    lastMouse = m;
-    if (drag) {
-      if (!drag.moved && Math.hypot(m.x - drag.sx, m.y - drag.sy) > 6) drag.moved = true;
-      if (drag.moved) { cam.x = drag.cx - (m.x - drag.sx) / cam.z; cam.y = drag.cy - (m.y - drag.sy) / cam.z; }
-    }
-    hover = drag && drag.moved ? null : nodeAt(m.x, m.y);
-    cv.style.cursor = drag && drag.moved ? 'grabbing' : hover ? 'pointer' : 'grab';
-    showTip(hover, m.x, m.y);
-  }
-  let inspected = null;
-  function up(m, type) {
-    if (!isOpen || !drag) return;
-    const wasClick = !drag.moved;
-    drag = null;
-    if (!wasClick) { inspected = null; return; }
-    const n = nodeAt(m.x, m.y);
-    if (type === 'touch' && (!n || inspected !== n)) {
-      inspected = n; showTip(n, m.x, m.y); return;
-    }
-    if (!n) return;
-    if (G.buyNode(n)) {
-      pulses[n.id] = 1;
-      G.audio.play('buy');
-      showTip(n, m.x, m.y);
+  M.refresh = function (bought) {
+    if (!built) return;
+    const m = M.model();
+    paintWallet(m);
+    paintTabs(m);
+    paintInfo(m);
+    const key = m.tab.id + (m.unlock ? ':locked' : '');
+    if (key !== gridKey) {
+      gridKey = key;
+      buildGrid(m);
     } else {
-      G.audio.play('error');
+      for (const i of m.unlock ? [m.unlock].concat(m.cards) : m.cards) paintCard(refs[i.card.id], i, i.card.id === bought);
     }
-  }
-  const board = { down, move, up, cancel() { drag = null; inspected = null; } };
-  G.bindBoard(cv, board);
-  function zoom(factor, m = { x: 960, y: 540 }) {
-    const wx = (m.x - 960) / cam.z + cam.x, wy = (m.y - 540) / cam.z + cam.y;
-    cam.z = G.clamp(cam.z * factor, 0.35, 5);
-    cam.x = wx - (m.x - 960) / cam.z; cam.y = wy - (m.y - 540) / cam.z;
-  }
-  document.getElementById('zoomIn').onclick = () => zoom(1.4);
-  document.getElementById('zoomOut').onclick = () => zoom(1 / 1.4);
-  cv.addEventListener('wheel', e => {
-    if (!isOpen) return;
-    e.preventDefault(); zoom(e.deltaY < 0 ? 1.12 : 1 / 1.12, G.toStage(e));
-  }, { passive: false });
-
-  /* ----------------------------------------------------------------- draw */
-  function drawNode(n, now) {
-    const p = pos[n.id], l = G.level(n.id), col = FAM[n.fam] || '#fff';
-    const avail = G.nodeAvailable(n), maxed = l >= n.max, owned = l > 0;
-    const cur = CUR[n.cur], afford = G.save.data[cur.key] >= G.nodeCost(n);
-    const pl = pulses[n.id] || 0;
-    const half = HALF * (1 + pl * 0.25);
-    ctx.save();
-    ctx.translate(p.x, p.y);
-    const buyable = avail && afford && !maxed;
-    if (owned || buyable) { ctx.shadowColor = col; ctx.shadowBlur = owned ? 16 : 8 + 8 * (0.5 + 0.5 * Math.sin(now / 260)); }
-    ctx.fillStyle = owned ? rgba(col, 0.22) : '#06080b';
-    ctx.fillRect(-half, -half, half * 2, half * 2);
-    ctx.lineWidth = hover === n ? 5 : 3;
-    ctx.strokeStyle = avail ? (owned ? col : rgba(col, buyable ? 0.95 : 0.55)) : '#353b44';
-    ctx.strokeRect(-half, -half, half * 2, half * 2);
-    ctx.shadowBlur = 0;
-    G.icon(ctx, n.icon, 0, -3, 30, !avail ? '#454c57' : owned ? '#ffffff' : col);
-    if (!avail) G.icon(ctx, 'lock', half - 9, half - 9, 16, '#9aa3b0');
-    ctx.font = 'bold 15px "Trebuchet MS", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-    ctx.fillStyle = maxed ? '#ffd84a' : avail ? '#e8edf5' : '#59606b';
-    ctx.fillText(l + '/' + n.max, 0, half + 18);
-    if ((n.crown && owned) || (maxed && n.max > 1)) G.icon(ctx, 'crown', 0, -half - 12, 20, '#ffd84a');
-    if (pl > 0) {
-      ctx.strokeStyle = rgba(col, pl); ctx.lineWidth = 3;
-      const r = half + (1 - pl) * 46;
-      ctx.strokeRect(-r, -r, r * 2, r * 2);
-      pulses[n.id] = Math.max(0, pl - 0.03);
-    }
-    ctx.restore();
-  }
-
-  function draw(now) {
-    if (!isOpen) return;
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, 1920, 1080);
-    const bg = ctx.createRadialGradient(960, 540, 60, 960, 540, 900);
-    bg.addColorStop(0, 'rgba(30,40,70,0.28)'); bg.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = bg; ctx.fillRect(0, 0, 1920, 1080);
-
-    ctx.save();
-    ctx.translate(960 - cam.x * cam.z, 540 - cam.y * cam.z);
-    ctx.scale(cam.z, cam.z);
-
-    ctx.lineCap = 'round';
-    for (const n of G.TREE) {
-      if (!n.parent) continue;
-      const a = pos[n.parent], b = pos[n.id], col = FAM[n.fam] || '#fff';
-      const owned = G.owned(n.id), open = G.owned(n.parent);
-      ctx.strokeStyle = rgba(col, owned ? 0.9 : open ? 0.45 : 0.16);
-      ctx.lineWidth = owned ? 4 : 3;
-      if (owned) { ctx.shadowColor = col; ctx.shadowBlur = 12; }
-      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-      ctx.shadowBlur = 0;
-      if (owned) {
-        const u = ((now * 0.00035 + G.hash(a.x | 0, b.y | 0, 7)) % 1);
-        ctx.fillStyle = '#fff';
-        ctx.beginPath(); ctx.arc(a.x + (b.x - a.x) * u, a.y + (b.y - a.y) * u, 3, 0, G.TAU); ctx.fill();
-      }
-    }
-    for (const n of G.TREE) drawNode(n, now);
-    ctx.restore();
-
-    // currencies
-    ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
-    let y = 52;
-    for (const k of ['crystal', 'orb', 'cube']) {
-      const c = CUR[k];
-      ctx.shadowColor = c.c; ctx.shadowBlur = 14;
-      G.icon(ctx, c.icon, 46, y, 32, c.c);
-      ctx.shadowBlur = 0;
-      ctx.font = 'bold 34px "Trebuchet MS", sans-serif';
-      ctx.fillStyle = c.c;
-      ctx.fillText(G.fmt(G.save.data[c.key]), 76, y + 1);
-      y += 50;
-    }
-    ctx.fillStyle = 'rgba(180,190,205,0.55)'; ctx.font = '17px "Trebuchet MS", sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('Crystals come from kills  -  Orbs from winning a level for the first time  -  Cubes from a flawless first win', 960, 1040);
-    ctx.fillText(document.body.classList.contains('touch-ui') ? 'Drag to pan. Use +/- to zoom. Tap a node to inspect, tap again to buy.' : 'Drag to pan, scroll to zoom, click a node to buy', 960, 1062);
-  }
-
-  return {
-    open() {
-      if (!laid) layout();
-      isOpen = true; drag = null; hover = null;
-      cv.classList.remove('hidden');
-      document.getElementById('treeui').classList.remove('hidden');
-    },
-    close() {
-      board.cancel();
-      isOpen = false;
-      tip.classList.add('hidden');
-      cv.classList.add('hidden');
-      document.getElementById('treeui').classList.add('hidden');
-    },
-    draw, board,
-    get hovered() { return hover; },
-    pos,
-    get isOpen() { return isOpen; },
   };
+
+  /* -------------------------------------------------------------------- dom */
+  function make(tag, cls, text) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+
+  function icon(name, color, px, cls) {
+    const c = make('canvas', cls);
+    c.width = c.height = px;
+    G.icon(c.getContext('2d'), name, px / 2, px / 2, px * 0.8, color);
+    return c;
+  }
+
+  // restart a CSS animation class and drop it again once it has played
+  function flash(el, cls, ms) {
+    clearTimeout(el['t_' + cls]);
+    el.classList.remove(cls);
+    void el.offsetWidth;
+    el.classList.add(cls);
+    el['t_' + cls] = setTimeout(() => el.classList.remove(cls), ms);
+  }
+
+  function deny(c) {
+    G.audio.play('error');
+    if (refs[c.id]) flash(refs[c.id].el, 'shake', 320);
+    if (chips[c.cur]) flash(chips[c.cur].el, 'lack', 500);
+  }
+
+  function scrollTab() {
+    const bar = $('upTabs'), b = tabEls[M.tab];
+    if (!b || !bar.clientWidth) return;
+    const want = b.offsetLeft - (bar.clientWidth - b.offsetWidth) / 2;
+    bar.scrollLeft = Math.max(0, Math.min(bar.scrollWidth - bar.clientWidth, want));
+  }
+
+  function build() {
+    if (built) return;
+    built = true;
+    for (const w of WALLET) {
+      const el = document.querySelector('#wallet .chip[data-cur="' + w.cur + '"]');
+      chips[w.cur] = { el, b: el.querySelector('b') };
+    }
+    buildTabs();
+    $('upTabs').addEventListener('click', e => {
+      const b = e.target.closest('button.tab');
+      if (!b) return;
+      if (b.dataset.tab !== M.tab) G.audio.play('click');
+      M.select(b.dataset.tab);
+      if (e.detail) b.blur(); // keep Enter meaning Play after a mouse click
+    });
+    $('upGrid').addEventListener('click', e => {
+      const b = e.target.closest('button.buy');
+      if (!b) return;
+      if (e.detail) b.blur();
+      // a double-click on Unlock must not also buy whatever card slides into that spot
+      if (performance.now() < guard) return;
+      M.buy(b.closest('.ucard').dataset.id);
+    });
+  }
+
+  function buildTabs() {
+    const bar = $('upTabs');
+    bar.textContent = '';
+    let group = '', row = null;
+    for (const t of G.TABS) {
+      if (t.group !== group) {
+        group = t.group;
+        const g = make('div', 'tg');
+        row = make('div', 'tgt');
+        g.append(make('div', 'tgl', group), row);
+        bar.appendChild(g);
+      }
+      const b = make('button', 'tab');
+      b.type = 'button';
+      b.dataset.tab = t.id;
+      b.style.setProperty('--c', t.color);
+      b.append(icon(t.icon, t.color, 76, 'ti'), icon('lock', '#8a93a1', 40, 'bd lk'), icon('crown', '#ffd84a', 40, 'bd cr'), make('span', null, t.name));
+      row.appendChild(b);
+      tabEls[t.id] = b;
+    }
+  }
+
+  function buildGrid(m) {
+    const grid = $('upGrid');
+    grid.textContent = '';
+    for (const k in refs) delete refs[k];
+    for (const i of m.unlock ? [m.unlock].concat(m.cards) : m.cards) {
+      const r = buildCard(i.card);
+      refs[i.card.id] = r;
+      grid.appendChild(r.el);
+      paintCard(r, i, false);
+    }
+    grid.scrollTop = 0;
+    guard = performance.now() + 250;
+  }
+
+  function weaponArt(tab) {
+    const c = make('canvas');
+    c.width = c.height = 192;
+    const ctx = c.getContext('2d');
+    if (tab.ability) G.icon(ctx, tab.icon, 96, 96, 150, tab.color);
+    else G.weapons.drawIcon(ctx, G.TMAP[tab.id], 96, 100, 2.4);
+    return c;
+  }
+
+  function buildCard(c) {
+    const t = G.TAB_MAP[c.tab];
+    const el = make('div', 'ucard k-' + c.kind);
+    el.dataset.id = c.id;
+    el.style.setProperty('--c', t.color);
+    const r = { el };
+
+    const ic = make('div', 'ic');
+    ic.appendChild(c.kind === 'weapon' ? weaponArt(t) : icon(c.icon, t.color, 104));
+
+    const mid = make('div', 'mid');
+    mid.append(make('div', 'nm', c.name), make('div', 'ds', c.desc));
+    if (c.kind === 'stat') {
+      const pips = make('div', 'pips');
+      r.pips = [];
+      for (let n = 0; n < c.max; n++) r.pips.push(pips.appendChild(make('i')));
+      r.count = pips.appendChild(make('span'));
+      mid.appendChild(pips);
+    } else if (c.kind === 'weapon') {
+      r.why = mid.appendChild(make('div', 'why'));
+    }
+
+    el.append(ic, mid);
+    if (c.kind === 'stat') {
+      const val = make('div', 'val');
+      r.val = val.appendChild(make('b'));
+      r.next = val.appendChild(make('small'));
+      el.appendChild(val);
+    }
+
+    const buy = make('button', 'buy');
+    buy.type = 'button';
+    const pr = make('span', 'pr');
+    pr.appendChild(icon(c.cur, CUR[c.cur].color, 52));
+    r.price = pr.appendChild(make('span'));
+    buy.append(make('span', 'lb', 'UNLOCK'), pr);
+    r.buy = buy;
+    el.append(buy, make('div', 'done', c.kind === 'stat' ? 'MAX' : 'UNLOCKED'));
+    return r;
+  }
+
+  function label(i) {
+    const c = i.card;
+    if (i.status === 'locked') return c.name + ' is locked. ' + i.reason;
+    const unit = CUR[c.cur].name.toLowerCase();
+    return (c.kind === 'stat' ? 'Upgrade ' : 'Unlock ') + c.name + ' for ' + i.cost + ' ' + (i.cost === 1 ? unit.replace(/s$/, '') : unit);
+  }
+
+  function paintCard(r, i, bought) {
+    for (const s of STATES) r.el.classList.toggle(s, i.status === s);
+    if (r.pips) {
+      r.pips.forEach((p, n) => p.classList.toggle('on', n < i.level));
+      r.count.textContent = i.level + '/' + i.max;
+    }
+    if (r.val) {
+      if (r.val.textContent !== i.value) {
+        r.val.textContent = i.value;
+        if (bought) flash(r.val, 'flash', 450);
+      }
+      r.next.textContent = i.next ? 'next: ' + i.next : '';
+    }
+    if (r.why) { r.why.textContent = i.reason; r.why.hidden = !i.reason; }
+    r.price.textContent = i.status === 'locked' ? 'Locked' : G.fmt(i.cost);
+    r.buy.setAttribute('aria-disabled', i.status === 'ready' ? 'false' : 'true');
+    r.buy.setAttribute('aria-label', label(i));
+    if (bought) flash(r.el, 'pop', 320);
+  }
+
+  function paintWallet(m) {
+    for (const w of m.wallet) {
+      const c = chips[w.cur];
+      c.b.textContent = G.fmt(w.have);
+      c.el.title = w.name + ': ' + Math.floor(w.have).toLocaleString('en-US') + ' (' + CUR[w.cur].how + ')';
+    }
+  }
+
+  function paintTabs(m) {
+    for (const t of m.tabs) {
+      const b = tabEls[t.tab.id];
+      b.classList.toggle('sel', t.selected);
+      b.classList.toggle('locked', t.locked);
+      b.classList.toggle('ready', t.ready);
+      b.classList.toggle('maxed', t.maxed);
+      b.setAttribute('aria-pressed', t.selected ? 'true' : 'false');
+      b.title = t.tab.name + (t.locked ? ' - ' + (t.reason || 'Locked') : '');
+    }
+  }
+
+  function paintInfo(m) {
+    const t = m.tab, i = m.info;
+    $('upInfo').style.setProperty('--c', t.color);
+    if (iconKey !== t.id) {
+      iconKey = t.id;
+      const ctx = $('upIcon').getContext('2d');
+      ctx.clearRect(0, 0, 112, 112);
+      G.icon(ctx, t.icon, 56, 56, 90, t.color);
+    }
+    $('upTitle').textContent = t.title;
+    $('upDesc').textContent = t.desc;
+    $('upNote').textContent = m.note;
+    $('upBar').style.width = (i.total ? Math.round(100 * i.done / i.total) : 0) + '%';
+    $('upCount').textContent = i.done + ' / ' + i.total;
+  }
+
+  return M;
 })();

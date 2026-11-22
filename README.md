@@ -13,8 +13,10 @@ Progress is saved in `localStorage`.
 
 ## How to play
 
-1. **Upgrade tree** - spend crystals, orbs and cubes on turrets, abilities and passive bonuses.
-   Orbs come from first wins, cubes from perfect (no-leak) first clears.
+1. **Upgrades** - spend crystals, orbs and cubes on upgrade cards. Every turret and ability has its own
+   tab: buy its unlock card first (some build on an earlier weapon), then upgrade its stats. The Defense
+   and Economy tabs cover base health, orc debuffs and income. Orbs come from first wins, cubes from
+   perfect (no-leak) first clears.
 2. **Level select** - 12 levels across 6 worlds.
 3. **Build phase** - place turrets anywhere on the high ground beside the lanes, aim them and set their
    firing arcs. Each turret shows its grey firing wedge (the selected one is highlighted), and the
@@ -24,7 +26,8 @@ Progress is saved in `localStorage`.
    straight for the nearest exit. Orcs near an incoming strike can sidestep on open ground, so
    cover both branches of a fork or aim powers where the crowd has little room to dodge.
    Explosive hits flash orcs orange, flamethrowers scorch them, and the dead leave pixel blood on the ground.
-5. **Result** - crystals are paid out per kill (gold and silver orcs pay more).
+5. **Result** - crystals are paid out per kill (gold and silver orcs pay more, and later levels pay more
+   per kill). Income is tight on purpose, so expect to replay levels to afford everything.
 
 Turrets: Gunner, Cannon, Flamethrower, Mortar, Laser, Tesla, Grenade launcher.
 Abilities: Missile, Strafing run, Bomb, Orbital strike, Cryo, Nuke.
@@ -45,13 +48,14 @@ rack: reload upgrades shorten the gap between shots, but an empty rack takes 3.5
 | `F` | Cycle game speed (x1 / x2 / x3) |
 | `Esc` / `P` | Pause |
 | `M` | Mute |
-| `Enter` | Continue (title, upgrade tree, result) |
+| `Enter` | Continue (title, upgrades, result) |
+| `←` / `→` | Switch upgrade tab |
 
 **Phone or tablet:** Tap a turret in the toolbar, then tap high ground to place it.
 Drag the turret to move it or drag its aiming handle to turn it. Use **Arc -**, **Arc +**
 and **Remove** for the selected turret. In battle, tap to fire or drag and release for
-a line attack. In Upgrades, drag to pan, use **+ / -** to zoom, and tap a node twice
-to inspect then buy. Both orientations work; landscape gives a wider view.
+a line attack. In Upgrades, swipe the tab strip to switch weapons and tap a card's price
+to buy it. Both orientations work; landscape gives a wider view.
 
 **VR headset:** Open the [live game](https://aaronc1992.github.io/orc-swarm/) in a browser
 that supports immersive WebXR with a pointing controller. Face forward and select

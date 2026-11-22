@@ -115,7 +115,7 @@
     this.dead[i] = 1; this.nDead++;
     const run = G.run, t = this.type[i];
     run.kills++; run.alive--;
-    run.crystals += run.pay * (t === 2 ? 25 : t === 1 ? 8 : 1);
+    run.crystals += run.pay * (t === 2 ? G.ECON.goldPay : t === 1 ? G.ECON.silverPay : 1);
     if (t === 2) run.golds++;
     G.fx.corpse(this.x[i], this.y[i], t);
     if (t === 3) this.blasts.push(this.x[i], this.y[i]);

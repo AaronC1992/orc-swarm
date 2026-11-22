@@ -42,7 +42,7 @@
     return {
       def, demo: !!demo, total: demo ? 16000 : def.orcs, spawning: false, alive: 0, remaining: demo ? 16000 : def.orcs,
       aliveCap: demo ? 9000 : Math.min(MAX_ALIVE, def.orcs), hpMul: def.hp,
-      pay: Math.pow(1.1, idx) * S.pay, kills: 0, leaked: 0, golds: 0, crystals: 0, bestNuke: 0,
+      pay: G.ECON.kill * Math.pow(G.ECON.growth, idx) * S.pay, kills: 0, leaked: 0, golds: 0, crystals: 0, bestNuke: 0,
       hp: demo ? 1e9 : S.hp, maxhp: demo ? 1e9 : S.hp, dmg: new Float64Array(G.SRC.length), doneAt: 0,
     };
   }
@@ -196,8 +196,7 @@
 
   function draw(now) {
     const st = G.state;
-    if (st === 'tree') { G.meta.draw(now); return; }
-    if (st === 'levels' || st === 'boot') return;
+    if (st === 'upgrades' || st === 'levels' || st === 'boot') return;
     const shake = fx.shake;
     world.style.transform = shake > 0.05 ? 'translate(' + ((Math.random() - 0.5) * shake * 2).toFixed(1) + 'px,' + ((Math.random() - 0.5) * shake * 2).toFixed(1) + 'px)' : '';
     G.render.draw(now);

@@ -16,7 +16,7 @@ G.vr = (function () {
   const state = () => G.paused ? 'pause' : G.state;
   const action = id => () => $(id).click();
   function cancel() {
-    G.ui.board.cancel(); G.meta.board.cancel();
+    G.ui.board.cancel();
     held = gesture = null;
   }
   function row(items, y, h = 68) {
@@ -29,6 +29,27 @@ G.vr = (function () {
       ctx.fillText(label, x + w / 2, y + h / 2, w - 20);
       if (fn) buttons.push({ x: x + 4, y, w: w - 8, h, fn });
     });
+  }
+  // one upgrade card: a plain panel with its own buy button on the right
+  function card(i, x, y, w, h) {
+    const c = i.card, stat = c.kind === 'stat', done = i.status === 'max', ready = i.status === 'ready';
+    const bw = 250, bx = x + w - bw - 18, by = y + 18, bh = h - 36, tw = bx - x - 60;
+    ctx.save();
+    ctx.fillStyle = '#1d262d'; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = G.TAB_MAP[c.tab].color; ctx.fillRect(x, y, 10, h);
+    ctx.textAlign = 'left';
+    ctx.font = 'bold 34px sans-serif'; ctx.fillStyle = '#fff';
+    ctx.fillText(c.name + (stat ? `   ${i.level}/${i.max}` : ''), x + 34, y + 38, tw);
+    ctx.font = '27px sans-serif'; ctx.fillStyle = '#c3ccd3';
+    ctx.fillText(stat ? (done ? i.value : `${i.value}  >  ${i.next}`) : c.desc, x + 34, y + 80, tw);
+    ctx.font = '23px sans-serif'; ctx.fillStyle = stat ? '#8d99a3' : '#ff9a8a';
+    ctx.fillText(stat ? c.desc : i.reason, x + 34, y + 118, tw);
+    ctx.textAlign = 'center'; ctx.font = 'bold 31px sans-serif';
+    if (!done) { ctx.fillStyle = ready ? '#277c68' : '#262e36'; ctx.fillRect(bx, by, bw, bh); }
+    ctx.fillStyle = done ? '#ffd84a' : ready ? '#fff' : i.status === 'poor' ? '#ff8a7a' : '#959fa7';
+    ctx.fillText(done ? (stat ? 'MAX' : 'UNLOCKED') : i.status === 'locked' ? 'Locked' : `${G.fmt(i.cost)} ${G.curKey[c.cur]}`, bx + bw / 2, by + bh / 2, bw - 20);
+    ctx.restore();
+    if (ready) buttons.push({ x: bx, y: by, w: bw, h: bh, fn: () => G.meta.buy(c.id) });
   }
   function paint(now) {
     G.gameFrame(now);
@@ -51,12 +72,24 @@ G.vr = (function () {
         ['Arc +', action('arcMore')], ['Remove', action('buildRemove')], G.turrets.length ?
           ['Start battle', action('btnStart')] : ['Place a turret first', null]] :
         [['Pause', action('btnPause')], [`Speed x${G.speed}`, action('btnSpeed')]], 1202);
-    } else if (st === 'tree') {
-      ctx.drawImage($('tree'), 0, 0, width, G.H);
-      const n = G.meta.hovered;
-      label(n ? `${n.name} (${G.level(n.id)}/${n.max})   ${n.desc}   ${G.nodeCost(n)} ${n.cur}` :
-        'Point at an upgrade for details. Trigger to buy, or hold and drag to pan.', 1134);
-      row([['Menu', action('btnTreeBack')], ['Zoom -', action('zoomOut')], ['Zoom +', action('zoomIn')], ['Play', action('btnPlay')]], 1202);
+    } else if (st === 'upgrades') {
+      const m = G.meta.model();
+      label(m.wallet.map(w => `${w.name} ${G.fmt(w.have)}`).join('   |   '), 44);
+      const tabs = turrets => m.tabs.filter(t => (t.tab.group === 'Turrets') === turrets).map(t =>
+        [t.tab.name + (t.locked ? ' (locked)' : t.maxed ? ' (max)' : t.ready ? ' *' : ''), () => G.meta.select(t.tab.id), t.selected]);
+      row(tabs(true), 88, 64);
+      row(tabs(false), 158, 64);
+      label(`${m.tab.title}: ${m.tab.desc}`, 262);
+      label(`${m.info.done} / ${m.info.total} upgrades` + (m.note ? `   |   ${m.note}` : ''), 302);
+      let col = 0, y = 346;
+      for (const i of (m.unlock ? [m.unlock] : []).concat(m.cards)) {
+        const wide = i.card.kind !== 'stat';
+        if (wide && col) { col = 0; y += 166; }
+        card(i, wide ? 32 : 32 + col * 936, y, wide ? 1856 : 920, 150);
+        if (wide || col) { col = 0; y += 166; } else col = 1;
+      }
+      label('* you can afford an upgrade there', 1140);
+      row([['Menu', action('btnUpBack')], ['Play', action('btnPlay')]], 1202);
     } else if (st === 'levels') {
       label('Choose a battlefield', 235);
       const cards = Array.from($('levelgrid').children);
@@ -71,7 +104,7 @@ G.vr = (function () {
       label(st === 'title' ? 'Orc Swarm' : st === 'pause' ? 'Paused' : $('resTitle').textContent, 400);
       if (st === 'result') label(`${G.run.kills} orcs stopped   |   ${G.run.leaked} leaked`, 510);
       const ids = st === 'title' ? ['btnContinue','btnSound'] : st === 'pause' ? ['btnResume','btnRestart','btnQuit'] :
-        ['btnResAgain','btnResNext','btnResTree'].filter(id => !$(id).classList.contains('hidden'));
+        ['btnResAgain','btnResNext','btnResUp'].filter(id => !$(id).classList.contains('hidden'));
       row(ids.map(id => [$(id).textContent, action(id)]), 635);
       row([['Leave VR', () => session.end()]], 800);
     }
@@ -111,7 +144,7 @@ G.vr = (function () {
   }
   function boardAt(p) {
     if (!p || p.y >= G.H) return null;
-    return state() === 'tree' ? G.meta.board : ['build','battle'].includes(state()) ? G.ui.board : null;
+    return ['build','battle'].includes(state()) ? G.ui.board : null;
   }
   function selectStart(e) {
     if (held || session.visibilityState !== 'visible' || uiState !== state()) return;

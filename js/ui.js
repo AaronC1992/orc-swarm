@@ -48,7 +48,7 @@ G.ui = (function () {
   });
 
   /* ------------------------------------------------------------- screens */
-  const SCREENS = ['screen-title', 'screen-levels', 'screen-result', 'screen-pause'];
+  const SCREENS = ['screen-title', 'screen-upgrades', 'screen-levels', 'screen-result', 'screen-pause'];
   function showOnly(ids) {
     for (const s of SCREENS) $(s).classList.toggle('hidden', ids.indexOf(s) < 0);
   }
@@ -56,11 +56,11 @@ G.ui = (function () {
   U.show = function (state) {
     U.board.cancel();
     $('buildTools').classList.toggle('hidden', state !== 'build');
-    tipHide();
-    if (state === 'tree') G.meta.open(); else G.meta.close();
+    if (state !== 'upgrades') G.meta.close();
     $('hud').classList.toggle('hidden', state !== 'build' && state !== 'battle' && state !== 'result');
     $('fx').style.pointerEvents = (state === 'build' || state === 'battle') ? 'auto' : 'none';
     if (state === 'title') showOnly(['screen-title']);
+    else if (state === 'upgrades') { showOnly(['screen-upgrades']); G.meta.open(); }
     else if (state === 'levels') { showOnly(['screen-levels']); U.buildLevels(); }
     else if (state === 'result') showOnly(['screen-result']);
     else showOnly([]);
@@ -74,7 +74,6 @@ G.ui = (function () {
       U.hint();
     }
   };
-  function tipHide() { $('tip').classList.add('hidden'); }
 
   U.hint = function () {
     const b = G.state === 'build';
@@ -329,8 +328,12 @@ G.ui = (function () {
     G.audio.init();
     const st = G.state;
     if (e.code === 'KeyM') { G.audio.setMuted(!G.audio.muted); setText('btnSound', ''); $('btnSound').textContent = 'Sound: ' + (G.audio.muted ? 'Off' : 'On'); return; }
-    if (st === 'tree' && (e.code === 'Enter' || e.code === 'Space')) { e.preventDefault(); G.go('levels'); return; }
-    if (st === 'title' && (e.code === 'Enter' || e.code === 'Space')) { e.preventDefault(); G.go('tree'); return; }
+    if (st === 'upgrades') {
+      if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') { e.preventDefault(); G.meta.step(e.code === 'ArrowLeft' ? -1 : 1); G.audio.play('click'); return; }
+      // a focused button keeps its own Enter / Space behaviour
+      if ((e.code === 'Enter' || e.code === 'Space') && e.target.tagName !== 'BUTTON') { e.preventDefault(); G.go('levels'); return; }
+    }
+    if (st === 'title' && (e.code === 'Enter' || e.code === 'Space')) { e.preventDefault(); G.go('upgrades'); return; }
     if (st === 'build') {
       if (e.code === 'Space') { e.preventDefault(); G.beginBattle(); return; }
       if (e.code === 'KeyR') { W.recallAll(); U.sel = null; U.placing = null; U.refreshSlots(); G.audio.play('click'); return; }
@@ -347,12 +350,12 @@ G.ui = (function () {
       const n = /^Digit(\d)$/.exec(e.code);
       if (n && slots[+n[1] - 1]) { A.arm(slots[+n[1] - 1].a.id); G.audio.play('click'); }
     } else if (st === 'result' && e.code === 'Enter') {
-      G.go('tree');
+      G.go('upgrades');
     }
   });
 
   /* --------------------------------------------------------------- buttons */
-  $('btnContinue').addEventListener('click', () => { G.audio.init(); G.audio.play('click'); G.go('tree'); });
+  $('btnContinue').addEventListener('click', () => { G.audio.init(); G.audio.play('click'); G.go('upgrades'); });
   $('btnNew').addEventListener('click', () => {
     if (window.confirm('Erase all progress and start a new game?')) { G.save.reset(); G.computeStats(); G.audio.play('click'); U.toast('Progress erased'); }
   });
@@ -362,8 +365,8 @@ G.ui = (function () {
     G.audio.play('click');
   });
   $('btnPlay').addEventListener('click', () => { G.audio.play('click'); G.go('levels'); });
-  $('btnTreeBack').addEventListener('click', () => { G.audio.play('click'); G.go('title'); });
-  $('btnLevelsBack').addEventListener('click', () => { G.audio.play('click'); G.go('tree'); });
+  $('btnUpBack').addEventListener('click', () => { G.audio.play('click'); G.go('title'); });
+  $('btnLevelsBack').addEventListener('click', () => { G.audio.play('click'); G.go('upgrades'); });
   $('btnStart').addEventListener('click', () => G.beginBattle());
   $('btnSpeed').addEventListener('click', () => { G.speed = G.speed >= 3 ? 1 : G.speed + 1; });
   $('btnPause').addEventListener('click', () => G.setPaused(true));
@@ -373,10 +376,10 @@ G.ui = (function () {
   });
   $('btnResume').addEventListener('click', () => G.setPaused(false));
   $('btnRestart').addEventListener('click', () => { G.setPaused(false); G.startLevel(G.levelIdx); });
-  $('btnQuit').addEventListener('click', () => { G.setPaused(false); G.go('tree'); });
+  $('btnQuit').addEventListener('click', () => { G.setPaused(false); G.go('upgrades'); });
   $('btnResAgain').addEventListener('click', () => G.startLevel(G.levelIdx));
   $('btnResNext').addEventListener('click', () => G.startLevel(G.levelIdx + 1));
-  $('btnResTree').addEventListener('click', () => G.go('tree'));
+  $('btnResUp').addEventListener('click', () => G.go('upgrades'));
 
   U.input = input;
   return U;

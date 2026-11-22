@@ -13,7 +13,7 @@ test('holding maxed missiles over a single spawn leaves gaps in the wave', t => 
   let seed = 123;
   t.mock.method(Math, 'random', () => (seed = (Math.imul(1664525, seed) + 1013904223) >>> 0) / 4294967296);
   G.save.data = G.save.fresh();
-  for (const n of G.TREE.filter(n => n.fam === 'missile')) G.save.data.up[n.id] = n.max;
+  for (const c of G.CARDS.filter(c => c.tab === 'missile')) G.save.data.up[c.id] = c.max;
   G.computeStats();
   const def = G.LEVELS.find(d => d.id === '1.1'), sim = G.sim, A = G.abilities;
   G.map = G.buildMap(def); sim.reset(); A.reset();

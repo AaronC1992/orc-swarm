@@ -1,5 +1,5 @@
 'use strict';
-/* Small vector icons used by the upgrade tree and the toolbars. Unit space is [-1, 1]. */
+/* Small vector icons used by the upgrade cards and the toolbars. Unit space is [-1, 1]. */
 
 G.icon = (function () {
   const T = Math.PI * 2;

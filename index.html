@@ -17,8 +17,6 @@
   </div>
   <div id="flash"></div>
   <div id="leakv"></div>
-
-  <canvas id="tree" width="1920" height="1080" class="hidden"></canvas>
   </div>
 
   <div id="hud" class="hidden">
@@ -46,11 +44,28 @@
     <button id="btnMenu" class="hbox" title="Menu (Esc)">&#9776;</button>
   </div>
 
-  <div id="treeui" class="hidden">
-    <p class="touch-note">Drag to pan. Tap a node to inspect; tap again to buy.</p>
-    <button id="btnTreeBack" class="small">Menu</button>
-    <div class="board-tools zoom-tools"><button id="zoomOut" aria-label="Zoom out">-</button><button id="zoomIn" aria-label="Zoom in">+</button></div>
-    <button id="btnPlay" class="big">Play <kbd>ENTER</kbd></button>
+  <div id="screen-upgrades" class="screen hidden">
+    <div id="upHead">
+      <h1>Upgrades</h1>
+      <div id="wallet">
+        <div class="chip" data-cur="crystal" title="Crystals: earned from kills"><canvas width="48" height="48" data-icon="crystal" data-color="#59b8ff"></canvas><b>0</b></div>
+        <div class="chip" data-cur="orb" title="Orbs: earned from a level's first win"><canvas width="48" height="48" data-icon="orb" data-color="#ffa03a"></canvas><b>0</b></div>
+        <div class="chip" data-cur="cube" title="Cubes: earned from a flawless first win"><canvas width="48" height="48" data-icon="cube" data-color="#ff6fd8"></canvas><b>0</b></div>
+      </div>
+    </div>
+    <div id="upTabs"></div>
+    <div id="upInfo">
+      <canvas id="upIcon" width="112" height="112"></canvas>
+      <div class="who"><h2 id="upTitle"></h2><p id="upDesc"></p></div>
+      <p id="upNote"></p>
+      <div class="prog"><div class="meter"><i id="upBar"></i></div><span id="upCount"></span></div>
+    </div>
+    <div id="upGrid"></div>
+    <div id="upFoot">
+      <button id="btnUpBack" class="small">Menu</button>
+      <p>Crystals come from kills - Orbs from a level's first win - Cubes from a flawless first win</p>
+      <button id="btnPlay" class="big">Play <kbd>ENTER</kbd></button>
+    </div>
   </div>
 
   <div id="screen-title" class="screen">
@@ -80,7 +95,7 @@
       <div class="row">
         <button id="btnResAgain" class="small">Retry</button>
         <button id="btnResNext" class="small">Next Level</button>
-        <button id="btnResTree" class="big">Upgrades</button>
+        <button id="btnResUp" class="big">Upgrades</button>
       </div>
     </div>
   </div>
@@ -96,7 +111,6 @@
     </div>
   </div>
 
-  <div id="tip" class="hidden"></div>
   <div id="toast" class="hidden"></div>
 </div>
 
